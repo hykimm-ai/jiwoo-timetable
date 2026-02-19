@@ -24,6 +24,21 @@
   --fontCell: 18px;
   --fontTime: 22px;
   --fontBlock: 18px;
+
+  /* 단일시간(하교) 같은 "마커" 이벤트 */
+.event.point {
+  height: 28px !important;
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  font-weight: 800;
+  z-index: 5;
+  box-shadow: none !important;
+  border: 1px dashed rgba(15,23,42,.22);
+}
+
+/* 하교는 더 구분되게 */
+.event.point.ev-하교 {
+  background: #E8EDF6;
 }
 
 *{box-sizing:border-box}
@@ -334,6 +349,16 @@ let editingId = null;
 /** ====== util ====== */
 const pad2 = n => String(n).padStart(2,'0');
 
+function isPointEvent(it){
+  // end가 없거나, end가 start보다 작거나 같은 경우 => 단일시간 이벤트로 취급
+  return !it.end || toMinutes(it.end) <= toMinutes(it.start);
+}
+
+function overlaps(aStart, aEnd, bStart, bEnd){
+  return aStart < bEnd && bStart < aEnd;
+}
+
+
 function toMinutes(hhmm){
   const m = String(hhmm).trim().match(/^(\d{1,2}):(\d{2})$/);
   if(!m) return NaN;
@@ -352,6 +377,23 @@ function to12(hhmm){
   const h12 = (h%12===0) ? 12 : (h%12);
   return `${h12}:${pad2(m)}`;
 }
+
+function labelWithIcon(label){
+  const map = {
+    "하교": "🏫 하교",
+    "영어": "📘 영어",
+    "수학": "📐 수학",
+    "태권도": "🥋 태권도",
+    "축구": "⚽ 축구",
+    "바이올린": "🎻 바이올린",
+    "한우리논술": "📝 한우리논술",
+    "미술": "🎨 미술",
+    "수영": "🏊 수영",
+    "집": "🏠 집"
+  };
+  return map[label] || label;
+}
+  
 function clamp(min){
   const a = START_HOUR*60;
   const b = END_HOUR*60;
@@ -432,72 +474,80 @@ function buildGrid(){
   }
 }
 
-function renderEvents(){
-  gridEl.querySelectorAll('.event').forEach(e => e.remove());
+function renderEvents(items){
+  const grid = document.querySelector(".grid");
+  grid.innerHTML = "";
 
-  const days = data.days;
-  const allCells = gridEl.querySelectorAll('.cell');
-  const colCount = 1 + days.length;
-
-  const sampleDayCell = allCells[colCount + 1];
-  const sampleTimeCell = allCells[colCount];
-
-  if(!sampleDayCell || !sampleTimeCell) return;
-
-  const dayW = sampleDayCell.getBoundingClientRect().width;
-  const timeW = sampleTimeCell.getBoundingClientRect().width;
-  const rowH = sampleDayCell.getBoundingClientRect().height;
-
-  const baseMin = data.startHour * 60;
-
-for(const it of data.items){
-  const dayIndex = days.indexOf(it.day);
-  if(dayIndex === -1) continue;
-
-  const sMin = toMinutes(it.start);
-  const eMin = it.end ? toMinutes(it.end) : null;
-
-  const topMin = sMin - baseMin;
-
-  const top = rowH + (topMin/60)*rowH;
-  const left = timeW + dayIndex*dayW;
-
-  const ev = document.createElement('div');
-
-  // 🔵 하교는 단일 시점 표시
-  if(it.label === "하교"){
-    ev.className = `event ev-하교`;
-    ev.style.left = left + 'px';
-    ev.style.top = top + 'px';
-    ev.style.width = (dayW - 16) + 'px';
-    ev.style.height = "28px";   // 얇은 표시
-
-    ev.innerHTML = `
-      <div class="evLabel">${to12(it.start)} 하교</div>
-    `;
-
-  } else {
-    const durMin = eMin - sMin;
-
-    ev.className = `event ev-${it.label}`;
-    ev.style.left = left + 'px';
-    ev.style.top = top + 'px';
-    ev.style.width = (dayW - 16) + 'px';
-    ev.style.height = ((durMin/60)*rowH - 16) + 'px';
-
-    ev.innerHTML = `
-      <div class="evTime">${to12(it.start)}–${to12(it.end)}</div>
-      <div class="evLabel">${it.label}</div>
-    `;
-  }
-
-  ev.addEventListener('click', (e)=>{
-    e.stopPropagation();
-    if(!editEnabled) return;
-    openEventModal(it, false);
+  // day별로 묶기
+  const byDay = { Mon:[], Tue:[], Wed:[], Thu:[], Fri:[] };
+  items.forEach(it => {
+    if(!byDay[it.day]) return;
+    byDay[it.day].push(it);
   });
 
-  gridEl.appendChild(ev);
+  // day마다: (1) 블록 이벤트 먼저 렌더, (2) point 이벤트는 겹치면 위로 띄우기
+  Object.keys(byDay).forEach(dayKey => {
+    const dayItems = byDay[dayKey]
+      .slice()
+      .sort((a,b)=> toMinutes(a.start) - toMinutes(b.start));
+
+    // 먼저 "블록 이벤트"만 뽑기
+    const blockItems = dayItems.filter(it => !isPointEvent(it));
+    const pointItems = dayItems.filter(it => isPointEvent(it));
+
+    // 1) 블록 이벤트 렌더
+    blockItems.forEach(it => {
+      const ev = document.createElement("div");
+      ev.className = `event ev-${it.label}`;
+      // day column index: Mon=1, Tue=2.. (0은 시간열)
+      const col = ["Mon","Tue","Wed","Thu","Fri"].indexOf(dayKey) + 2;
+      const startM = toMinutes(it.start);
+      const endM   = toMinutes(it.end);
+      const topPx  = minutesToY(startM);
+      const hPx    = minutesToY(endM) - minutesToY(startM);
+
+      ev.style.gridColumn = col;
+      ev.style.top = `${topPx}px`;
+      ev.style.height = `${hPx}px`;
+
+      // 시간 + 라벨 (블록 안에 시간 표시)
+      ev.innerHTML = `
+        <div class="evTime">${to12(it.start)}–${to12(it.end)}</div>
+        <div class="evTitle">${labelWithIcon(it.label)}</div>
+      `;
+      grid.appendChild(ev);
+    });
+
+    // 2) point 이벤트 렌더 (겹치면 위로 띄우기)
+    pointItems.forEach((it, idx) => {
+      const ev = document.createElement("div");
+      ev.className = `event point ev-${it.label}`;
+
+      const col = ["Mon","Tue","Wed","Thu","Fri"].indexOf(dayKey) + 2;
+      const tM = toMinutes(it.start);
+      const topPx = minutesToY(tM);
+
+      // point를 10분짜리로 가정해서 "겹침 판단"만 함 (표시는 단일시간)
+      const fakeEnd = tM + 10;
+
+      // 겹치는 블록이 있으면 위로 띄우기 (겹치는 개수에 따라 더 띄움)
+      const overlapsCount = blockItems.filter(b => {
+        const bs = toMinutes(b.start), be = toMinutes(b.end);
+        return overlaps(tM, fakeEnd, bs, be);
+      }).length;
+
+      // 겹치면 1개당 18px씩 위로
+      const lift = overlapsCount > 0 ? overlapsCount * 18 : 0;
+
+      ev.style.gridColumn = col;
+      ev.style.top = `${topPx}px`;
+      ev.style.transform = `translateY(-${lift}px)`;
+
+      ev.innerHTML = `<div class="evTitle">${labelWithIcon(it.label)} ${to12(it.start)}</div>`;
+      grid.appendChild(ev);
+    });
+
+  });
 }
 
 

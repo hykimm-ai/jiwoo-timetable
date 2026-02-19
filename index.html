@@ -1,119 +1,314 @@
+
 <!doctype html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>지우 시간표</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>지우 시간표</title>
+  <style>
+    :root{
+      --border:#e5e7eb;
+      --bg:#ffffff;
+      --muted:#6b7280;
+      --chip:#111827;
+      --chipText:#ffffff;
+      --page:#f8fafc;
+      --rowH:72px;  /* 시간 칸 높이 */
+      --radius:16px;
+      --font: 18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple SD Gothic Neo","Noto Sans KR", sans-serif;
+      background:var(--page);
+      color:#111827;
+    }
+    header{
+      position:sticky; top:0;
+      background:rgba(248,250,252,.92);
+      backdrop-filter: blur(8px);
+      border-bottom:1px solid var(--border);
+      padding:14px 14px 10px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      z-index:10;
+    }
+    .title{
+      font-weight:900;
+      font-size:22px;
+      letter-spacing:-0.02em;
+    }
+    .actions{
+      display:flex;
+      gap:8px;
+      align-items:center;
+    }
+    button{
+      border:1px solid var(--border);
+      background:var(--bg);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:800;
+      cursor:pointer;
+    }
+    button.primary{
+      background:var(--chip);
+      border-color:var(--chip);
+      color:#fff;
+    }
+    .container{
+      padding:14px;
+    }
+    .hint{
+      color:var(--muted);
+      font-size:14px;
+      margin:8px 2px 12px;
+      line-height:1.3;
+    }
 
-<style>
-body{
-  margin:0;
-  font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  background:#f3f4f6;
-}
+    .gridWrap{
+      overflow:auto;
+      border:1px solid var(--border);
+      border-radius:var(--radius);
+      background:var(--bg);
+    }
+    .grid{
+      min-width: 900px;
+      display:grid;
+      grid-template-columns: 110px repeat(5, 1fr);
+      grid-auto-rows: var(--rowH);
+      position:relative;
+    }
 
-header{
-  padding:20px;
-  font-size:22px;
-  font-weight:800;
-  text-align:center;
-  background:#ffffff;
-  border-bottom:1px solid #e5e7eb;
-}
+    .cell{
+      border-right:1px solid var(--border);
+      border-bottom:1px solid var(--border);
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:var(--font);
+      font-weight:800;
+    }
+    .cell.time{
+      justify-content:flex-start;
+      font-weight:900;
+    }
+    .cell.head{
+      background:#f9fafb;
+      position:sticky;
+      top:0;
+      z-index:5;
+    }
+    .cell.head.time{
+      left:0;
+      z-index:6;
+      position:sticky;
+    }
+    .cell.time{
+      position:sticky;
+      left:0;
+      background:#fff;
+      z-index:4;
+    }
+    .cell.head:not(.time){ z-index:5; }
 
-.table-wrap{
-  overflow:auto;
-  padding:20px;
-}
+    .event{
+      position:absolute;
+      margin:8px;
+      border-radius:999px;
+      background:linear-gradient(180deg,#111827,#0b1220);
+      color:var(--chipText);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:10px 12px;
+      font-weight:900;
+      box-shadow: 0 8px 18px rgba(17,24,39,.12);
+      pointer-events:none;
+      font-size:18px;
+    }
 
-table{
-  border-collapse:collapse;
-  min-width:900px;
-  background:white;
-}
-
-th, td{
-  border:1px solid #e5e7eb;
-  text-align:center;
-  padding:10px;
-}
-
-th{
-  background:#f9fafb;
-  font-weight:800;
-}
-
-.time{
-  font-weight:700;
-  background:#fafafa;
-  width:120px;
-}
-
-.slot{
-  height:60px;
-  font-weight:800;
-}
-
-.block{
-  background:#111827;
-  color:white;
-  border-radius:8px;
-  padding:6px;
-  font-size:14px;
-}
-</style>
+    .error{
+      background:#fff;
+      border:1px solid #fecaca;
+      color:#991b1b;
+      padding:12px;
+      border-radius:12px;
+      margin-top:12px;
+      white-space:pre-wrap;
+      font-size:14px;
+    }
+    @media (max-width: 720px){
+      :root{ --font:16px; --rowH:68px; }
+      .grid{ min-width: 760px; }
+      .event{ font-size:16px; }
+    }
+  </style>
 </head>
-
 <body>
+  <header>
+    <div class="title" id="pageTitle">지우 시간표</div>
+    <div class="actions">
+      <button id="refreshBtn">새로 불러오기</button>
+      <button class="primary" id="printBtn">인쇄/PDF</button>
+    </div>
+  </header>
 
-<header>지우 시간표</header>
+  <div class="container">
+    <div class="hint">
+      ✅ 수정은 <b>schedule.json</b>만 바꾸면 끝.<br/>
+      (GitHub에서 schedule.json → Edit → Commit)
+    </div>
 
-<div class="table-wrap">
-<table>
-<tr>
-  <th>시간</th>
-  <th>월</th>
-  <th>화</th>
-  <th>수</th>
-  <th>목</th>
-  <th>금</th>
-</tr>
+    <div class="gridWrap">
+      <div class="grid" id="grid"></div>
+    </div>
 
-<tr>
-  <td class="time">13:00</td>
-  <td class="slot"><div class="block">영어학원</div></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-</tr>
+    <div id="err" class="error" style="display:none"></div>
+  </div>
 
-<tr>
-  <td class="time">14:00</td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-  <td class="slot"><div class="block">수학</div></td>
-  <td class="slot"></td>
-</tr>
+<script>
+  const gridEl = document.getElementById('grid');
+  const errEl = document.getElementById('err');
+  const titleEl = document.getElementById('pageTitle');
 
-<tr>
-  <td class="time">15:00</td>
-  <td class="slot"></td>
-  <td class="slot"><div class="block">태권도</div></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-</tr>
+  document.getElementById('printBtn').addEventListener('click', () => window.print());
+  document.getElementById('refreshBtn').addEventListener('click', () => load(true));
 
-<tr>
-  <td class="time">16:00</td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-  <td class="slot"><div class="block">피아노</div></td>
-  <td class="slot"></td>
-  <td class="slot"></td>
-</tr>
+  function showError(msg){
+    errEl.style.display = 'block';
+    errEl.textContent = msg;
+  }
+  function hideError(){
+    errEl.style.display = 'none';
+    errEl.textContent = '';
+  }
 
-<tr>
-  <td class="t
+  function toMinutes(hhmm){
+    const [h,m] = hhmm.split(':').map(Number);
+    return h*60 + m;
+  }
+  function fmtHour(h){
+    return String(h).padStart(2,'0') + ':00';
+  }
+
+  function buildGrid(days, startHour, endHour){
+    gridEl.innerHTML = '';
+    // header row
+    gridEl.appendChild(cell('시간','cell head time'));
+    for(const d of days) gridEl.appendChild(cell(d,'cell head'));
+
+    // time rows
+    for(let h = startHour; h < endHour; h++){
+      gridEl.appendChild(cell(fmtHour(h),'cell time'));
+      for(let i=0;i<days.length;i++){
+        gridEl.appendChild(cell('','cell')); // blank cell
+      }
+    }
+  }
+
+  function cell(text, cls){
+    const div = document.createElement('div');
+    div.className = cls;
+    div.textContent = text;
+    return div;
+  }
+
+  function placeEvents(data){
+    // Absolute overlay events on top of the grid
+    const days = data.days;
+    const startHour = data.startHour;
+    const endHour = data.endHour;
+
+    const gridRect = gridEl.getBoundingClientRect();
+    const colCount = 1 + days.length; // time + days
+    const rowCount = 1 + (endHour - startHour); // header + hours
+
+    // find one body cell size for positioning
+    const allCells = gridEl.querySelectorAll('.cell');
+    const headerCells = gridEl.querySelectorAll('.cell.head');
+    const timeColCells = gridEl.querySelectorAll('.cell.time');
+
+    // Get sizes by measuring a typical day cell
+    // Day cell index: header row has colCount cells, then first time row begins.
+    const sampleDayCell = allCells[colCount + 1]; // first row, first day cell
+    const sampleTimeCell = allCells[colCount];     // first row, time cell
+
+    if(!sampleDayCell || !sampleTimeCell) return;
+
+    const dayW = sampleDayCell.getBoundingClientRect().width;
+    const timeW = sampleTimeCell.getBoundingClientRect().width;
+    const rowH = sampleDayCell.getBoundingClientRect().height;
+
+    // remove old events
+    gridEl.querySelectorAll('.event').forEach(e => e.remove());
+
+    // container position relative
+    gridEl.style.position = 'relative';
+
+    for(const it of (data.items || [])){
+      const dayIndex = days.indexOf(it.day);
+      if(dayIndex === -1) continue;
+
+      const s = toMinutes(it.start);
+      const e = toMinutes(it.end);
+      const base = startHour * 60;
+
+      // clamp
+      const topMinutes = Math.max(0, s - base);
+      const heightMinutes = Math.max(30, e - s);
+
+      const top = rowH /*header*/ + (topMinutes / 60) * rowH;
+      const left = timeW + dayIndex * dayW;
+
+      const ev = document.createElement('div');
+      ev.className = 'event';
+      ev.textContent = it.label || '';
+
+      ev.style.left = left + 'px';
+      ev.style.top = top + 'px';
+      ev.style.width = (dayW - 16) + 'px';
+
+      // height proportional to duration
+      ev.style.height = ((heightMinutes / 60) * rowH - 16) + 'px';
+
+      gridEl.appendChild(ev);
+    }
+  }
+
+  async function load(bust=false){
+    hideError();
+    try{
+      const url = bust ? `schedule.json?ts=${Date.now()}` : 'schedule.json';
+      const res = await fetch(url, {cache: 'no-store'});
+      if(!res.ok){
+        throw new Error(`schedule.json을 못 불러왔어. (HTTP ${res.status})\n\n해결:\n1) repo에 schedule.json 파일이 있는지 확인\n2) 파일명이 정확히 schedule.json(소문자)인지 확인\n3) Commit 후 1~2분 기다렸다 새로고침`);
+      }
+      const data = await res.json();
+
+      titleEl.textContent = data.title || '지우 시간표';
+
+      // defaults
+      const days = data.days || ["월","화","수","목","금"];
+      const startHour = Number.isFinite(data.startHour) ? data.startHour : 13;
+      const endHour = Number.isFinite(data.endHour) ? data.endHour : 18;
+
+      // adjust columns to days length
+      gridEl.style.gridTemplateColumns = `110px repeat(${days.length}, 1fr)`;
+
+      buildGrid(days, startHour, endHour);
+      placeEvents({days, startHour, endHour, items: data.items || []});
+    }catch(e){
+      showError(String(e.message || e));
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

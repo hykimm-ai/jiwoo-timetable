@@ -1,643 +1,261 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>지우 시간표</title>
 
 <style>
 :root{
-  --page:#f6f7fb;
-  --card:#ffffff;
+  --rowH: 64px;
   --border:#e5e7eb;
-  --text:#0f172a;
-  --muted:#64748b;
-
-  --timeCol: 92px;
-  --dayColMin: 148px;
-
-  --rowH: 78px;     /* 1시간 높이(큰 가독성) */
-  --radius: 16px;
-
-  --fontTitle: 24px;
-  --fontCell: 18px;
-  --fontTime: 22px;
-  --fontBlock: 18px;
-
-  /* 단일시간(하교) 같은 "마커" 이벤트 */
-.event.point {
-  height: 28px !important;
-  padding: 6px 10px !important;
-  border-radius: 999px !important;
-  font-weight: 800;
-  z-index: 5;
-  box-shadow: none !important;
-  border: 1px dashed rgba(15,23,42,.22);
 }
 
-/* 하교는 더 구분되게 */
-.event.point.ev-하교 {
-  background: #E8EDF6;
-}
-
-*{box-sizing:border-box}
+/* 기본 */
 body{
   margin:0;
-  font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  background:var(--page);
-  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans KR",sans-serif;
+  background:#f8fafc;
+  color:#111827;
 }
 
 header{
-  position:sticky; top:0; z-index:10;
-  background:rgba(246,247,251,.92);
-  backdrop-filter: blur(10px);
-  border-bottom:1px solid var(--border);
-  padding:14px;
   display:flex;
-  align-items:center;
   justify-content:space-between;
-  gap:10px;
+  align-items:center;
+  padding:18px 20px;
+  font-weight:800;
+  font-size:26px;
+  background:white;
+  border-bottom:1px solid var(--border);
 }
 
-.title{
-  font-weight:900;
-  font-size:var(--fontTitle);
-  letter-spacing:-.02em;
-}
-
-.actions{
-  display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-}
-
-button{
-  border:1px solid var(--border);
-  background:#fff;
-  padding:10px 12px;
+.buttons button{
+  padding:10px 14px;
   border-radius:12px;
-  font-weight:900;
+  border:1px solid var(--border);
+  background:white;
+  font-weight:700;
   cursor:pointer;
 }
-button.primary{
-  background:#0b1220; color:#fff; border-color:#0b1220;
-}
-button.danger{
-  background:#ef4444; color:#fff; border-color:#ef4444;
+
+.buttons button.primary{
+  background:#0f172a;
+  color:white;
 }
 
-.wrap{ padding:14px; }
+/* 안내문 */
+.notice{
+  padding:16px 20px;
+  font-size:14px;
+  color:#475569;
+  line-height:1.6;
+}
 
-.gridWrap{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
+/* 그리드 */
+.wrapper{
   overflow:auto;
 }
 
 .grid{
-  min-width: calc(var(--timeCol) + 5*var(--dayColMin));
-  display:grid;
-  grid-template-columns: var(--timeCol) repeat(5, minmax(var(--dayColMin), 1fr));
-  grid-auto-rows: var(--rowH);
   position:relative;
+  display:grid;
+  grid-template-columns:80px repeat(5,1fr);
+  min-width:900px;
 }
 
 .cell{
-  border-right:1px solid var(--border);
-  border-bottom:1px solid var(--border);
+  border:1px solid var(--border);
+  height:var(--rowH);
+  background:white;
+}
+
+.time{
+  font-weight:800;
   display:flex;
   align-items:center;
   justify-content:center;
-  padding:10px;
-  font-size:var(--fontCell);
-  font-weight:900;
+  background:#f1f5f9;
 }
 
-.cell.head{
-  background:#f8fafc;
-  position:sticky; top:0; z-index:6;
-  font-size:18px;
-}
-
-.cell.head.time{
-  position:sticky; left:0; z-index:7;
-  justify-content:flex-start;
-  padding-left:12px;
-}
-
-.cell.time{
-  position:sticky; left:0; z-index:5;
-  background:#fff;
-  justify-content:flex-start;
-  padding-left:12px;
-  font-size:var(--fontTime);
-}
-
+/* 이벤트 */
 .event{
   position:absolute;
-  margin:8px;
-  border-radius: 18px;
-  padding:10px 12px;
-  color:#0f172a;
-  font-weight:900;
-  box-shadow: 0 10px 18px rgba(15,23,42,.10);
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  gap:6px;
-  overflow:hidden;
-  border:1px solid rgba(15,23,42,.08);
-}
-
-.evTime,.evLabel{
-  font-size:var(--fontBlock);
-  line-height:1.12;
-}
-.evTime{ opacity:.85; }
-.evLabel{ opacity:1; }
-
-/* ✅ 파스텔 팔레트(부드럽게) — 여기만 바꾸면 컬러 변경 가능 */
-.ev-하교{ background:#e2e8f0; }        /* slate-200 */
-.ev-영어{ background:#dbeafe; }        /* blue-100 */
-.ev-수학{ background:#fee2e2; }        /* red-100 */
-.ev-태권도{ background:#e0e7ff; }      /* indigo-100 */
-.ev-축구{ background:#dcfce7; }        /* green-100 */
-.ev-바이올린{ background:#f3e8ff; }    /* purple-100 */
-.ev-한우리논술{ background:#ffedd5; }  /* orange-100 */
-.ev-미술{ background:#fce7f3; }        /* pink-100 */
-.ev-수영{ background:#cffafe; }        /* cyan-100 */
-.ev-집{ background:#f1f5f9; }          /* slate-100 */
-
-.hint{
-  color:var(--muted);
-  font-size:14px;
-  margin:10px 2px 0;
-  line-height:1.35;
-}
-
-/* Modal */
-.modalBg{
-  position:fixed; inset:0;
-  background:rgba(15,23,42,.50);
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding:18px;
-  z-index:50;
-}
-.modal{
-  width:min(560px, 100%);
-  background:#fff;
-  border-radius:18px;
-  border:1px solid var(--border);
-  padding:16px;
-}
-.modal h3{ margin:4px 0 12px; }
-.field{ margin:10px 0; display:flex; flex-direction:column; gap:6px; }
-label{ font-size:14px; color:var(--muted); font-weight:900; }
-input, select{
-  border:1px solid var(--border);
-  border-radius:12px;
-  padding:12px;
+  left:0;
+  right:0;
+  margin:4px;
+  padding:10px;
+  border-radius:16px;
+  font-weight:800;
   font-size:16px;
-}
-.inline{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-.modalActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:12px; flex-wrap:wrap; }
-
-/* Mobile 더 크게 */
-@media (max-width: 520px){
-  :root{
-    --timeCol: 92px;
-    --dayColMin: 140px;
-    --rowH: 82px;
-    --fontTitle: 22px;
-    --fontCell: 18px;
-    --fontTime: 22px;
-    --fontBlock: 18px;
-  }
-  button{ padding:10px 10px; }
-  .cell.head{ font-size:18px; }
+  box-shadow:0 4px 12px rgba(0,0,0,.06);
+  color:#111827;
 }
 
-/* Print */
-@media print{
-  header,.hint,.actions{ display:none !important; }
-  body{ background:#fff; }
-  .wrap{ padding:0; }
-  .gridWrap{ border:none; }
+/* 단일시간(하교) */
+.event.point{
+  height:28px!important;
+  padding:6px 10px!important;
+  border-radius:999px!important;
+  font-size:14px;
+  box-shadow:none;
+  border:1px dashed rgba(0,0,0,.15);
+}
+
+/* 파스텔 컬러 팔레트 */
+.ev-하교{background:#e2e8f0;}
+.ev-영어{background:#dbeafe;}
+.ev-수학{background:#fee2e2;}
+.ev-태권도{background:#dcfce7;}
+.ev-축구{background:#fef3c7;}
+.ev-바이올린{background:#f3e8ff;}
+.ev-한우리논술{background:#ede9fe;}
+.ev-미술{background:#fde68a;}
+.ev-수영{background:#cffafe;}
+.ev-집{background:#e5e7eb;}
+
+/* 모바일 */
+@media(max-width:600px){
+  header{font-size:22px}
+  .event{font-size:18px}
+  .time{font-size:16px}
 }
 </style>
 </head>
 
 <body>
+
 <header>
-  <div class="title" id="pageTitle">지우 시간표</div>
-  <div class="actions">
-    <button id="btnRefresh">새로고침</button>
-    <button id="btnEdit" class="primary">편집</button>
-    <button id="btnPrint">인쇄/PDF</button>
+  지우 시간표
+  <div class="buttons">
+    <button onclick="location.reload()">새로고침</button>
+    <button class="primary" onclick="enterEdit()">편집</button>
+    <button onclick="window.print()">인쇄/PDF</button>
   </div>
 </header>
 
-<div class="wrap">
-  <div class="gridWrap">
-    <div class="grid" id="grid"></div>
-  </div>
-  <div class="hint">
-    • 조부모님: 링크만 클릭하면 바로 보기(로그인 없음)<br/>
-    • 부모: <b>편집</b> → PIN 입력(기본 <b>1234</b>) → 빈칸 클릭=추가 / 블록 클릭=수정·삭제<br/>
-    • 편집 내용은 <b>편집한 기기(브라우저)에 저장</b>돼요. (공용 저장은 Apps Script 붙이면 가능)
-  </div>
+<div class="notice">
+• 조부모님: 링크만 클릭하면 바로 보기 (로그인 없음)<br>
+• 부모: 편집 → PIN 입력(기본 1234)<br>
 </div>
 
-<!-- PIN modal -->
-<div class="modalBg" id="pinBg">
-  <div class="modal">
-    <h3>편집 PIN 입력</h3>
-    <div class="field">
-      <label>4자리 PIN (기본: 1234)</label>
-      <input id="pinInput" inputmode="numeric" maxlength="4" placeholder="예: 1234" />
-    </div>
-    <div class="modalActions">
-      <button id="pinCancel">취소</button>
-      <button id="pinOk" class="primary">확인</button>
-    </div>
-  </div>
-</div>
-
-<!-- Event modal -->
-<div class="modalBg" id="evBg">
-  <div class="modal">
-    <h3 id="evTitle">일정</h3>
-
-    <div class="field">
-      <label>요일</label>
-      <select id="daySel">
-        <option value="월">월</option>
-        <option value="화">화</option>
-        <option value="수">수</option>
-        <option value="목">목</option>
-        <option value="금">금</option>
-      </select>
-    </div>
-
-    <div class="inline">
-      <div class="field">
-        <label>시작(5분 단위)</label>
-        <input id="startInput" placeholder="예: 13:40" />
-      </div>
-      <div class="field">
-        <label>종료(5분 단위)</label>
-        <input id="endInput" placeholder="예: 14:40" />
-      </div>
-    </div>
-
-    <div class="field">
-      <label>항목</label>
-      <select id="labelSel">
-        <option>하교</option><option>영어</option><option>수학</option><option>태권도</option><option>축구</option>
-        <option>바이올린</option><option>한우리논술</option><option>미술</option><option>수영</option><option>집</option>
-      </select>
-    </div>
-
-    <div class="modalActions">
-      <button id="evCancel">취소</button>
-      <button id="evDelete" class="danger" style="display:none;">삭제</button>
-      <button id="evSave" class="primary">저장</button>
-    </div>
-  </div>
+<div class="wrapper">
+  <div class="grid" id="grid"></div>
 </div>
 
 <script>
-const API_URL = "https://script.google.com/macros/s/AKfycbxpdNGOmh7PcexvYaGSQjBAswMxssv5KLBZ3yIBGkbKVHxgJp7OspE3JBMoo8sMbKTe/exec";  
-/** ====== 설정 ====== */
-const DEFAULT_PIN = "1234";         // ✅ 여기서 PIN 변경
-const DAYS = ["월","화","수","목","금"];
-const START_HOUR = 13;
-const END_HOUR = 19;
-const STORAGE_KEY = "jiwoo_schedule_override_v1";
+const PIN="1234";
 
-/** ====== DOM ====== */
-const gridEl = document.getElementById('grid');
-const titleEl = document.getElementById('pageTitle');
+/* ===== 실제 시간표 데이터 ===== */
+let schedule=[
+  {day:"Mon",label:"하교",start:"13:30"},
+  {day:"Mon",label:"영어",start:"13:40",end:"14:40"},
+  {day:"Mon",label:"수학",start:"14:50",end:"16:30"},
+  {day:"Mon",label:"태권도",start:"17:30",end:"18:20"},
 
-const btnRefresh = document.getElementById('btnRefresh');
-const btnEdit = document.getElementById('btnEdit');
-const btnPrint = document.getElementById('btnPrint');
+  {day:"Tue",label:"하교",start:"14:20"},
+  {day:"Tue",label:"축구",start:"14:30",end:"15:55"},
+  {day:"Tue",label:"영어",start:"16:00",end:"17:00"},
+  {day:"Tue",label:"태권도",start:"17:30",end:"18:20"},
 
-const pinBg = document.getElementById('pinBg');
-const pinInput = document.getElementById('pinInput');
-const pinCancel = document.getElementById('pinCancel');
-const pinOk = document.getElementById('pinOk');
+  {day:"Wed",label:"하교",start:"13:30"},
+  {day:"Wed",label:"바이올린",start:"13:40",end:"14:30"},
+  {day:"Wed",label:"영어",start:"14:40",end:"15:40"},
+  {day:"Wed",label:"태권도",start:"16:30",end:"17:20"},
 
-const evBg = document.getElementById('evBg');
-const evTitle = document.getElementById('evTitle');
-const daySel = document.getElementById('daySel');
-const startInput = document.getElementById('startInput');
-const endInput = document.getElementById('endInput');
-const labelSel = document.getElementById('labelSel');
-const evCancel = document.getElementById('evCancel');
-const evSave = document.getElementById('evSave');
-const evDelete = document.getElementById('evDelete');
+  {day:"Thu",label:"하교",start:"13:30"},
+  {day:"Thu",label:"영어",start:"13:40",end:"15:00"},
+  {day:"Thu",label:"한우리논술",start:"15:10",end:"16:30"},
+  {day:"Thu",label:"태권도",start:"17:30",end:"18:20"},
 
-let baseData = null;
-let data = null;
-let editEnabled = false;
-let editingId = null;
+  {day:"Fri",label:"하교",start:"13:30"},
+  {day:"Fri",label:"영어",start:"13:40",end:"14:45"},
+  {day:"Fri",label:"미술",start:"15:00",end:"16:20"},
+  {day:"Fri",label:"집",start:"16:30",end:"17:40"},
+  {day:"Fri",label:"수영",start:"17:45",end:"19:00"},
+];
 
-/** ====== util ====== */
-const pad2 = n => String(n).padStart(2,'0');
-
-function isPointEvent(it){
-  // end가 없거나, end가 start보다 작거나 같은 경우 => 단일시간 이벤트로 취급
-  return !it.end || toMinutes(it.end) <= toMinutes(it.start);
+/* ===== 유틸 ===== */
+function toMinutes(t){
+  const[h,m]=t.split(":").map(Number);
+  return h*60+m;
 }
 
-function overlaps(aStart, aEnd, bStart, bEnd){
-  return aStart < bEnd && bStart < aEnd;
+function to12(t){
+  let[h,m]=t.split(":").map(Number);
+  h=h>12?h-12:h;
+  return h+":"+m.toString().padStart(2,"0");
 }
 
-
-function toMinutes(hhmm){
-  const m = String(hhmm).trim().match(/^(\d{1,2}):(\d{2})$/);
-  if(!m) return NaN;
-  const h = Number(m[1]), mm = Number(m[2]);
-  return h*60 + mm;
-}
-function fromMinutes(min){
-  const h=Math.floor(min/60), m=min%60;
-  return `${pad2(h)}:${pad2(m)}`;
-}
-function to12(hhmm){
-  const mins = toMinutes(hhmm);
-  if(!Number.isFinite(mins)) return hhmm;
-  let h = Math.floor(mins/60);
-  const m = mins%60;
-  const h12 = (h%12===0) ? 12 : (h%12);
-  return `${h12}:${pad2(m)}`;
+function minutesToY(m){
+  const start=13*60;
+  return (m-start)/60*parseInt(getComputedStyle(document.documentElement).getPropertyValue('--rowH'));
 }
 
-function labelWithIcon(label){
-  const map = {
-    "하교": "🏫 하교",
-    "영어": "📘 영어",
-    "수학": "📐 수학",
-    "태권도": "🥋 태권도",
-    "축구": "⚽ 축구",
-    "바이올린": "🎻 바이올린",
-    "한우리논술": "📝 한우리논술",
-    "미술": "🎨 미술",
-    "수영": "🏊 수영",
-    "집": "🏠 집"
-  };
-  return map[label] || label;
-}
-  
-function clamp(min){
-  const a = START_HOUR*60;
-  const b = END_HOUR*60;
-  return Math.max(a, Math.min(b, min));
-}
-function isStep5(min){ return min % 5 === 0; }
-function uid(){ return 'e_' + Math.random().toString(16).slice(2) + Date.now().toString(16); }
-
-function show(el){ el.style.display='flex'; }
-function hide(el){ el.style.display='none'; }
-
-/** ====== data load/merge ====== */
-async function load(){
-  const res = await fetch(API_URL + "?ts=" + Date.now());
-  baseData = await res.json();
-
-  const raw = localStorage.getItem(STORAGE_KEY);
-  const override = raw ? JSON.parse(raw) : null;
-
-  data = {
-    title: baseData.title || "지우 시간표",
-    days: baseData.days || DAYS,
-    startHour: baseData.startHour ?? START_HOUR,
-    endHour: baseData.endHour ?? END_HOUR,
-    items: override?.items || baseData.items || []
-  };
-
-  titleEl.textContent = data.title;
-  render();
-}
-async function saveOverride(){
-  await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items: data.items })
-  });
+function isPoint(it){
+  return !it.end;
 }
 
-
-/** ====== render ====== */
-function makeCell(text, cls){
-  const div = document.createElement('div');
-  div.className = cls;
-  div.textContent = text;
-  return div;
-}
-
-function buildGrid(){
-  gridEl.innerHTML = '';
-  const days = data.days;
-
-  gridEl.style.gridTemplateColumns = `var(--timeCol) repeat(${days.length}, minmax(var(--dayColMin), 1fr))`;
-
-  // header
-  gridEl.appendChild(makeCell('시간', 'cell head time'));
-  for(const d of days) gridEl.appendChild(makeCell(d, 'cell head'));
-
-  // body hour rows
-  for(let h = data.startHour; h < data.endHour; h++){
-    gridEl.appendChild(makeCell(to12(`${h}:00`), 'cell time'));
-    for(let i=0;i<days.length;i++){
-      const c = makeCell('', 'cell');
-
-      // 빈칸 클릭 -> 일정 추가(편집 모드에서만)
-      c.addEventListener('click', () => {
-        if(!editEnabled) return;
-        openEventModal({
-          id: null,
-          day: days[i],
-          start: `${h}:00`,
-          end: `${h}:30`,
-          label: '영어'
-        }, true);
-      });
-
-      gridEl.appendChild(c);
-    }
-  }
-}
-
-function renderEvents(items){
-  const grid = document.querySelector(".grid");
-  grid.innerHTML = "";
-
-  // day별로 묶기
-  const byDay = { Mon:[], Tue:[], Wed:[], Thu:[], Fri:[] };
-  items.forEach(it => {
-    if(!byDay[it.day]) return;
-    byDay[it.day].push(it);
-  });
-
-  // day마다: (1) 블록 이벤트 먼저 렌더, (2) point 이벤트는 겹치면 위로 띄우기
-  Object.keys(byDay).forEach(dayKey => {
-    const dayItems = byDay[dayKey]
-      .slice()
-      .sort((a,b)=> toMinutes(a.start) - toMinutes(b.start));
-
-    // 먼저 "블록 이벤트"만 뽑기
-    const blockItems = dayItems.filter(it => !isPointEvent(it));
-    const pointItems = dayItems.filter(it => isPointEvent(it));
-
-    // 1) 블록 이벤트 렌더
-    blockItems.forEach(it => {
-      const ev = document.createElement("div");
-      ev.className = `event ev-${it.label}`;
-      // day column index: Mon=1, Tue=2.. (0은 시간열)
-      const col = ["Mon","Tue","Wed","Thu","Fri"].indexOf(dayKey) + 2;
-      const startM = toMinutes(it.start);
-      const endM   = toMinutes(it.end);
-      const topPx  = minutesToY(startM);
-      const hPx    = minutesToY(endM) - minutesToY(startM);
-
-      ev.style.gridColumn = col;
-      ev.style.top = `${topPx}px`;
-      ev.style.height = `${hPx}px`;
-
-      // 시간 + 라벨 (블록 안에 시간 표시)
-      ev.innerHTML = `
-        <div class="evTime">${to12(it.start)}–${to12(it.end)}</div>
-        <div class="evTitle">${labelWithIcon(it.label)}</div>
-      `;
-      grid.appendChild(ev);
-    });
-
-    // 2) point 이벤트 렌더 (겹치면 위로 띄우기)
-    pointItems.forEach((it, idx) => {
-      const ev = document.createElement("div");
-      ev.className = `event point ev-${it.label}`;
-
-      const col = ["Mon","Tue","Wed","Thu","Fri"].indexOf(dayKey) + 2;
-      const tM = toMinutes(it.start);
-      const topPx = minutesToY(tM);
-
-      // point를 10분짜리로 가정해서 "겹침 판단"만 함 (표시는 단일시간)
-      const fakeEnd = tM + 10;
-
-      // 겹치는 블록이 있으면 위로 띄우기 (겹치는 개수에 따라 더 띄움)
-      const overlapsCount = blockItems.filter(b => {
-        const bs = toMinutes(b.start), be = toMinutes(b.end);
-        return overlaps(tM, fakeEnd, bs, be);
-      }).length;
-
-      // 겹치면 1개당 18px씩 위로
-      const lift = overlapsCount > 0 ? overlapsCount * 18 : 0;
-
-      ev.style.gridColumn = col;
-      ev.style.top = `${topPx}px`;
-      ev.style.transform = `translateY(-${lift}px)`;
-
-      ev.innerHTML = `<div class="evTitle">${labelWithIcon(it.label)} ${to12(it.start)}</div>`;
-      grid.appendChild(ev);
-    });
-
-  });
-}
-
-
+/* ===== 렌더 ===== */
 function render(){
-  buildGrid();
-  renderEvents();
-}
+  const grid=document.getElementById("grid");
+  grid.innerHTML="";
 
-/** ====== PIN & edit ====== */
-btnPrint.addEventListener('click', ()=>window.print());
-btnRefresh.addEventListener('click', ()=>load());
+  const days=["Mon","Tue","Wed","Thu","Fri"];
 
-btnEdit.addEventListener('click', ()=>{
-  if(editEnabled){
-    editEnabled = false;
-    btnEdit.textContent = "편집";
-    btnEdit.classList.add('primary');
-    alert('편집 모드가 해제됐어요.');
-    return;
+  /* 시간 열 생성 */
+  for(let h=13;h<=19;h++){
+    const timeCell=document.createElement("div");
+    timeCell.className="cell time";
+    timeCell.innerText=to12(h+":00");
+    grid.appendChild(timeCell);
+
+    days.forEach(()=> {
+      const c=document.createElement("div");
+      c.className="cell";
+      grid.appendChild(c);
+    });
   }
-  pinInput.value = '';
-  show(pinBg);
-  setTimeout(()=>pinInput.focus(), 50);
-});
 
-pinCancel.addEventListener('click', ()=>hide(pinBg));
-pinOk.addEventListener('click', ()=>{
-  const p = pinInput.value.trim();
-  if(!/^\d{4}$/.test(p)) return alert('4자리 숫자 PIN을 입력해줘.');
-  if(p !== DEFAULT_PIN) return alert('PIN이 맞지 않아.');
-  editEnabled = true;
-  hide(pinBg);
-  btnEdit.textContent = "잠금";
-  btnEdit.classList.remove('primary');
-  alert('편집 모드 ON! 빈칸 클릭=추가, 블록 클릭=수정/삭제');
-});
+  /* 이벤트 */
+  schedule.forEach(it=>{
+    const col=days.indexOf(it.day)+2;
+    const ev=document.createElement("div");
+    ev.className="event ev-"+it.label;
 
-/** ====== event modal ====== */
-function openEventModal(it, isNew){
-  editingId = it.id || null;
-  evTitle.textContent = isNew ? '일정 추가' : '일정 수정';
-  daySel.value = it.day;
-  startInput.value = it.start;
-  endInput.value = it.end;
-  labelSel.value = it.label;
-  evDelete.style.display = isNew ? 'none' : 'inline-block';
-  show(evBg);
-}
-function closeEventModal(){ hide(evBg); }
+    const startM=toMinutes(it.start);
+    const top=minutesToY(startM);
 
-evCancel.addEventListener('click', closeEventModal);
+    ev.style.gridColumn=col;
+    ev.style.top=top+"px";
 
-evSave.addEventListener('click', ()=>{
-  const day = daySel.value;
-  const s = toMinutes(startInput.value);
-  const e = toMinutes(endInput.value);
-  const label = labelSel.value;
-
-  if(!DAYS.includes(day)) return alert('요일이 이상해.');
-  if(!Number.isFinite(s) || !Number.isFinite(e)) return alert('시간 형식은 HH:MM 예) 13:40');
-  if(!isStep5(s) || !isStep5(e)) return alert('5분 단위로 입력해줘. 예) 13:40');
-  if(e <= s) return alert('종료 시간이 시작보다 뒤여야 해.');
-  if(s < START_HOUR*60 || e > END_HOUR*60) return alert('시간 범위는 13:00~19:00 안에서만 가능해.');
-
-  if(editingId){
-    const idx = data.items.findIndex(x => x.id === editingId);
-    if(idx >= 0){
-      data.items[idx] = { ...data.items[idx], day, start: fromMinutes(s), end: fromMinutes(e), label };
-    } else {
-      data.items.push({ id: editingId, day, start: fromMinutes(s), end: fromMinutes(e), label });
+    if(isPoint(it)){
+      ev.classList.add("point");
+      ev.innerHTML="🏫 하교 "+to12(it.start);
+    }else{
+      const endM=toMinutes(it.end);
+      const height=minutesToY(endM)-minutesToY(startM);
+      ev.style.height=height+"px";
+      ev.innerHTML=to12(it.start)+"–"+to12(it.end)+"<br>"+it.label;
     }
-  } else {
-    data.items.push({ id: uid(), day, start: fromMinutes(s), end: fromMinutes(e), label });
+
+    grid.appendChild(ev);
+  });
+}
+
+render();
+
+/* ===== PIN ===== */
+function enterEdit(){
+  const p=prompt("PIN 입력");
+  if(p===PIN){
+    alert("편집모드 (추가/수정 기능은 확장 가능)");
+  }else{
+    alert("PIN 오류");
   }
-
-  saveOverride();
-  closeEventModal();
-  render();
-});
-
-evDelete.addEventListener('click', ()=>{
-  if(!editingId) return;
-  if(!confirm('삭제할까요?')) return;
-  data.items = data.items.filter(x => x.id !== editingId);
-  saveOverride();
-  closeEventModal();
-  render();
-});
-
-load();
+}
 </script>
+
 </body>
 </html>

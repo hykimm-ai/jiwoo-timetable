@@ -365,7 +365,7 @@ function hide(el){ el.style.display='none'; }
 
 /** ====== data load/merge ====== */
 async function load(){
-  const res = await fetch('schedule.json?ts=' + Date.now(), { cache: 'no-store' });
+  const res = await fetch(API_URL + "?ts=" + Date.now());
   baseData = await res.json();
 
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -382,9 +382,14 @@ async function load(){
   titleEl.textContent = data.title;
   render();
 }
-function saveOverride(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ items: data.items }));
+async function saveOverride(){
+  await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: data.items })
+  });
 }
+
 
 /** ====== render ====== */
 function makeCell(text, cls){

@@ -450,48 +450,56 @@ function renderEvents(){
 
   const baseMin = data.startHour * 60;
 
-  for(const it of data.items){
-    const dayIndex = days.indexOf(it.day);
-    if(dayIndex === -1) continue;
+for(const it of data.items){
+  const dayIndex = days.indexOf(it.day);
+  if(dayIndex === -1) continue;
 
-    const sMin = toMinutes(it.start);
-    const eMin = toMinutes(it.end);
-    if(!Number.isFinite(sMin) || !Number.isFinite(eMin) || eMin <= sMin) continue;
+  const sMin = toMinutes(it.start);
+  const eMin = it.end ? toMinutes(it.end) : null;
 
-    const topMin = clamp(sMin) - baseMin;
-    const durMin = Math.max(5, clamp(eMin) - clamp(sMin));
+  const topMin = sMin - baseMin;
 
-    const top = rowH + (topMin/60)*rowH;
-    const left = timeW + dayIndex*dayW;
+  const top = rowH + (topMin/60)*rowH;
+  const left = timeW + dayIndex*dayW;
 
-    const ev = document.createElement('div');
+  const ev = document.createElement('div');
+
+  // 🔵 하교는 단일 시점 표시
+  if(it.label === "하교"){
+    ev.className = `event ev-하교`;
+    ev.style.left = left + 'px';
+    ev.style.top = top + 'px';
+    ev.style.width = (dayW - 16) + 'px';
+    ev.style.height = "28px";   // 얇은 표시
+
+    ev.innerHTML = `
+      <div class="evLabel">${to12(it.start)} 하교</div>
+    `;
+
+  } else {
+    const durMin = eMin - sMin;
+
     ev.className = `event ev-${it.label}`;
     ev.style.left = left + 'px';
     ev.style.top = top + 'px';
     ev.style.width = (dayW - 16) + 'px';
     ev.style.height = ((durMin/60)*rowH - 16) + 'px';
 
-    const t = document.createElement('div');
-    t.className = 'evTime';
-    t.textContent = `${to12(it.start)}–${to12(it.end)}`;
-
-    const s = document.createElement('div');
-    s.className = 'evLabel';
-    s.textContent = it.label;
-
-    ev.appendChild(t);
-    ev.appendChild(s);
-
-    // 블록 클릭 -> 수정/삭제(편집 모드에서만)
-    ev.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      if(!editEnabled) return;
-      openEventModal(it, false);
-    });
-
-    gridEl.appendChild(ev);
+    ev.innerHTML = `
+      <div class="evTime">${to12(it.start)}–${to12(it.end)}</div>
+      <div class="evLabel">${it.label}</div>
+    `;
   }
+
+  ev.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(!editEnabled) return;
+    openEventModal(it, false);
+  });
+
+  gridEl.appendChild(ev);
 }
+
 
 function render(){
   buildGrid();
